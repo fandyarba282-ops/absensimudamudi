@@ -36,6 +36,8 @@
         .radio-group { display: flex; align-items: center; gap: 10px; font-weight: normal; }
         .loading { color: #666; font-style: italic; text-align: center; }
     </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -45,10 +47,11 @@
     </div>
     
     <div class="nav">
-        <div class="tab-btn active" onclick="openTab('anggota')">👥 Data Anggota</div>
-        <div class="tab-btn" onclick="openTab('absensi')">📝 Input Absensi</div>
-        <div class="tab-btn" onclick="openTab('rekap')">📊 Rekap Bulanan</div>
-    </div>
+    <div class="tab-btn active" onclick="openTab('anggota')">👥 Data Anggota</div>
+    <div class="tab-btn" onclick="openTab('absensi')">📝 Input Absensi</div>
+    <div class="tab-btn" onclick="openTab('rekap')">📊 Rekap Bulanan</div>
+    <div class="tab-btn" onclick="openTab('qrcode')">📱 QR Code Absensi</div>
+</div>
 
     <div class="container">
         <!-- TAB ANGGOTA -->
@@ -91,6 +94,27 @@
                     <thead><tr><th>No</th><th>Nama Lengkap</th><th>Panggilan</th><th>L/P</th><th>Alamat</th><th>No HP</th><th>HP Ortu</th><th>Aksi</th></tr></thead>
                     <tbody><tr><td colspan="8" class="loading">Memuat data dari Google Sheets...</td></tr></tbody>
                 </table>
+            </div>
+            
+            <div id="qrcode" class="tab-content">
+                <h3>📱 Display QR Code Absensi Mandiri</h3>
+                <p>Tampilkan QR Code ini di proyektor, laptop, atau cetak agar anggota bisa langsung scan lewat HP masing-masing.</p>
+
+                <div style="background: #f8fafc; border: 2px dashed var(--primary); padding: 20px; border-radius: 12px; text-align: center; max-width: 450px; margin: 20px auto;">
+                    <div class="form-group" style="text-align: left;">
+                        <label>Tanggal Pengajian</label>
+                        <input type="date" id="qrTanggal" onchange="buatQRCode()">
+                    </div>
+                    <div class="form-group" style="text-align: left;">
+                        <label>Topik / Keterangan Sesi</label>
+                        <input type="text" id="qrTopik" value="Pengajian Rutin" placeholder="Contoh: Pengajian Minggu Ke-1" oninput="buatQRCode()">
+                    </div>
+
+                    <!-- Tempat QR Code Rendred -->
+                    <div id="qrcodeContainer" style="display: flex; justify-content: center; margin: 25px 0;"></div>
+                    
+                    <div id="qrInfoText" style="font-weight: bold; color: var(--primary); font-size: 16px;"></div>
+                </div>
             </div>
         </div>
 
@@ -344,6 +368,56 @@
         // Mulai aplikasi
         ambilDataAnggota();
         document.getElementById('tglAbsen').valueAsDate = new Date();
+
+        let qrCodeObj = null;
+
+        // Modifikasi/panggil fungsi buatQRCode saat tab QR dibuka
+        function openTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(`'${tabId}'`));
+            if(activeBtn) activeBtn.classList.add('active');
+
+            if(tabId === 'absensi') loadFormAbsensi();
+            if(tabId === 'rekap') hitungRekap();
+            if(tabId === 'qrcode') initQRPage(); // Tambahan untuk QR
+        }
+
+        function initQRPage() {
+            const tglInput = document.getElementById('qrTanggal');
+            if(!tglInput.value) {
+                tglInput.valueAsDate = new Date();
+            }
+            buatQRCode();
+        }
+
+        function buatQRCode() {
+            const tgl = document.getElementById('qrTanggal').value;
+            const topik = document.getElementById('qrTopik').value.trim() || 'Pengajian Rutin';
+            const container = document.getElementById('qrcodeContainer');
+
+            if(!tgl) return;
+
+            // Format isi QR Code: PENGAJIAN|YYYY-MM-DD|Topik
+            const isiQR = `PENGAJIAN|${tgl}|${topik}`;
+
+            // Bersihkan QR Code lama
+            container.innerHTML = '';
+
+            // Render QR Code baru
+            qrCodeObj = new QRCode(container, {
+                text: isiQR,
+                width: 220,
+                height: 220,
+                colorDark : "#059669",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('qrInfoText').innerText = `📅 ${tgl} — ${topik}`;
+        }
     </script>
 </body>
 </html>
