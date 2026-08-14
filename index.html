@@ -19,19 +19,20 @@
         input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         button { background-color: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #047857; }
+        button:disabled { background-color: #9ca3af; cursor: not-allowed; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
         th { background-color: var(--primary); color: white; }
-        .img-preview { max-width: 50px; border-radius: 50%; }
         .flex-row { display: flex; gap: 10px; }
-        .status-radio { width: auto; margin-right: 5px; }
         .radio-group { display: flex; align-items: center; gap: 10px; font-weight: normal; }
+        .loading { color: #666; font-style: italic; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h2>📚 Database & Absensi Muda-Mudi Pengajian</h2>
+        <small>🟢 Backend: Google Sheets</small>
     </div>
     
     <div class="nav">
@@ -60,17 +61,14 @@
                     <div class="form-group" style="flex:1;"><label>No. WA Anggota</label><input type="text" id="hp"></div>
                     <div class="form-group" style="flex:1;"><label>No. HP Ortu</label><input type="text" id="hportu" required></div>
                 </div>
-                <div class="form-group">
-                    <label>Foto (Pilih file kecil)</label>
-                    <input type="file" id="foto" accept="image/*">
-                </div>
-                <button type="submit">💾 Simpan Anggota</button>
+                <button type="submit" id="btnSimpanAnggota">💾 Simpan ke Sheets</button>
             </form>
 
             <h3 style="margin-top: 30px;">Daftar Anggota</h3>
+            <button onclick="ambilDataAnggota()" style="margin-bottom:10px; background:#4b5563;">🔄 Refresh Data</button>
             <table id="tabelAnggota">
-                <thead><tr><th>Foto</th><th>Nama Lengkap</th><th>Panggilan</th><th>L/P</th><th>Alamat</th><th>No HP</th><th>HP Ortu</th><th>Aksi</th></tr></thead>
-                <tbody></tbody>
+                <thead><tr><th>No</th><th>Nama Lengkap</th><th>Panggilan</th><th>L/P</th><th>Alamat</th><th>No HP</th><th>HP Ortu</th></tr></thead>
+                <tbody><tr><td colspan="7" class="loading">Memuat data dari Google Sheets...</td></tr></tbody>
             </table>
         </div>
 
@@ -92,173 +90,167 @@
                 <input type="month" id="bulanRekap" onchange="hitungRekap()">
             </div>
             <table id="tabelRekap">
-                <thead><tr><th>Nama Lengkap</th><th>Total Pertemuan</th><th>Hadir (H)</th><th>Izin (I)</th><th>Sakit (S)</th><th>Alfa (A)</th><th>Persentase (%)</th></tr></thead>
+                <thead><tr><th>No</th><th>Nama Lengkap</th><th>Total Pertemuan</th><th>Hadir (H)</th><th>Izin (I)</th><th>Sakit (S)</th><th>Alfa (A)</th><th>Persentase (%)</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // Navigasi Tab
+        // ⚠️ PENTING: GANTI DENGAN URL APLIKASI WEB GOOGLE APPS SCRIPT ANDA DI SINI
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMrPVtBHz5Vo50ucH5Mcmt5ubE7Bau-e3VKk0NpyxeJpi5Qf3AGdnmuvZ1CWug1jshfg/exec';
+        
+        let dataAnggota = [];
+        let dataAbsen = [];
+
         function openTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.target.classList.add('active');
-            if(tabId === 'rekap') hitungRekap();
+            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(`'${tabId}'`));
+            if(activeBtn) activeBtn.classList.add('active');
+
             if(tabId === 'absensi') loadFormAbsensi();
+            if(tabId === 'rekap') hitungRekap();
         }
 
-        // --- MANAJEMEN DATA ANGGOTA ---
-        let anggota = JSON.parse(localStorage.getItem('db_anggota')) || [];
-        
-        function simpanAnggota(e) {
-            e.preventDefault();
-            const file = document.getElementById('foto').files[0];
-            const reader = new FileReader();
-            
-            reader.onloadend = function() {
-                const data = {
-                    id: Date.now(),
-                    nama: document.getElementById('nama').value,
-                    panggilan: document.getElementById('panggilan').value,
-                    jk: document.getElementById('jk').value,
-                    alamat: document.getElementById('alamat').value,
-                    hp: document.getElementById('hp').value,
-                    hportu: document.getElementById('hportu').value,
-                    foto: file ? reader.result : '' // Simpan sebagai Base64
-                };
-                anggota.push(data);
-                localStorage.setItem('db_anggota', JSON.stringify(anggota));
-                document.getElementById('formAnggota').reset();
-                tampilAnggota();
-                alert('Data berhasil disimpan!');
-            }
-            if(file) reader.readAsDataURL(file);
-            else reader.onloadend();
-        }
-
-        function tampilAnggota() {
+        // --- MANAJEMEN ANGGOTA ---
+        async function ambilDataAnggota() {
             const tbody = document.querySelector('#tabelAnggota tbody');
-            tbody.innerHTML = '';
-            anggota.forEach((a, index) => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${a.foto ? `<img src="${a.foto}" class="img-preview">` : '🖼️'}</td>
-                        <td>${a.nama}</td>
-                        <td>${a.panggilan}</td>
-                        <td>${a.jk}</td>
-                        <td>${a.alamat}</td>
-                        <td>${a.hp}</td>
-                        <td>${a.hportu}</td>
-                        <td><button style="background:red; padding:5px 10px;" onclick="hapusAnggota(${index})">Hapus</button></td>
-                    </tr>
-                `;
-            });
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">Memuat data dari Google Sheets... (Tunggu sebentar)</td></tr>';
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=get_anggota');
+                dataAnggota = await response.json();
+                
+                tbody.innerHTML = '';
+                if(dataAnggota.length === 0) tbody.innerHTML = '<tr><td colspan="7">Belum ada anggota.</td></tr>';
+                
+                dataAnggota.forEach((a, index) => {
+                    // Tampilkan No berdasarkan data dari Google Sheets
+                    tbody.innerHTML += `<tr><td>${a.no}</td><td>${a.nama}</td><td>${a.panggilan}</td><td>${a.jk}</td><td>${a.alamat}</td><td>${a.hp}</td><td>${a.hportu}</td></tr>`;
+                });
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="7" style="color:red">Gagal mengambil data. Pastikan URL Script benar.</td></tr>'; }
         }
 
-        function hapusAnggota(index) {
-            if(confirm('Yakin ingin menghapus anggota ini?')) {
-                anggota.splice(index, 1);
-                localStorage.setItem('db_anggota', JSON.stringify(anggota));
-                tampilAnggota();
-            }
+        async function simpanAnggota(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSimpanAnggota');
+            btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
+            
+            const payload = {
+                action: "simpan_anggota",
+                nama: document.getElementById('nama').value,
+                panggilan: document.getElementById('panggilan').value,
+                jk: document.getElementById('jk').value,
+                alamat: document.getElementById('alamat').value,
+                hp: document.getElementById('hp').value,
+                hportu: document.getElementById('hportu').value
+            };
+
+            try {
+                await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                alert("Data berhasil disimpan ke Google Sheets!");
+                document.getElementById('formAnggota').reset();
+                ambilDataAnggota();
+            } catch (e) { alert("Gagal menyimpan data!"); } 
+            finally { btn.disabled = false; btn.innerText = '💾 Simpan ke Sheets'; }
         }
 
         // --- MANAJEMEN ABSENSI ---
-        let absensi = JSON.parse(localStorage.getItem('db_absensi')) || {};
-
-        function loadFormAbsensi() {
+        async function loadFormAbsensi() {
             const tgl = document.getElementById('tglAbsen').value;
             const container = document.getElementById('formAbsensiContainer');
-            if(!tgl) { container.innerHTML = '<p>Silakan pilih tanggal terlebih dahulu.</p>'; return; }
-            if(anggota.length === 0) { container.innerHTML = '<p>Belum ada data anggota.</p>'; return; }
+            if(!tgl) return container.innerHTML = '<p>Pilih tanggal dulu.</p>';
+            if(dataAnggota.length === 0) await ambilDataAnggota();
+            if(dataAnggota.length === 0) return container.innerHTML = '<p>Belum ada anggota.</p>';
 
-            const absenHariIni = absensi[tgl] || {};
-            let html = `<table><thead><tr><th>Nama Lengkap</th><th>Kehadiran</th><th>Keterangan</th></tr></thead><tbody>`;
-            
-            anggota.forEach(a => {
-                const status = absenHariIni[a.id]?.status || 'H';
-                const ket = absenHariIni[a.id]?.ket || '';
-                html += `
-                    <tr>
-                        <td>${a.nama}</td>
-                        <td>
-                            <div class="radio-group">
-                                <label><input type="radio" class="status-radio" name="status_${a.id}" value="H" ${status==='H'?'checked':''}> H</label>
-                                <label><input type="radio" class="status-radio" name="status_${a.id}" value="I" ${status==='I'?'checked':''}> I</label>
-                                <label><input type="radio" class="status-radio" name="status_${a.id}" value="S" ${status==='S'?'checked':''}> S</label>
-                                <label><input type="radio" class="status-radio" name="status_${a.id}" value="A" ${status==='A'?'checked':''}> A</label>
-                            </div>
-                        </td>
-                        <td><input type="text" id="ket_${a.id}" value="${ket}" placeholder="Catatan..."></td>
-                    </tr>
-                `;
+            let html = `<table><thead><tr><th>No</th><th>Nama Lengkap</th><th>Kehadiran</th><th>Keterangan</th></tr></thead><tbody>`;
+            dataAnggota.forEach((a, index) => {
+                html += `<tr>
+                    <td>${a.no}</td>
+                    <td>${a.nama}</td>
+                    <td><div class="radio-group">
+                        <label><input type="radio" name="status_${index}" value="H" checked> H</label>
+                        <label><input type="radio" name="status_${index}" value="I"> I</label>
+                        <label><input type="radio" name="status_${index}" value="S"> S</label>
+                        <label><input type="radio" name="status_${index}" value="A"> A</label>
+                    </div></td>
+                    <td><input type="text" id="ket_${index}" placeholder="Catatan..."></td>
+                </tr>`;
             });
-            html += `</tbody></table><br><button onclick="simpanAbsensi()">💾 Simpan Absensi Tanggal Ini</button>`;
+            html += `</tbody></table><br><button onclick="simpanAbsensi()" id="btnSimpanAbsen">💾 Kirim Absen ke Sheets</button>`;
             container.innerHTML = html;
         }
 
-        function simpanAbsensi() {
+        async function simpanAbsensi() {
             const tgl = document.getElementById('tglAbsen').value;
             if(!tgl) return;
-            
-            let dataHariIni = {};
-            anggota.forEach(a => {
-                dataHariIni[a.id] = {
-                    status: document.querySelector(`input[name="status_${a.id}"]:checked`).value,
-                    ket: document.getElementById(`ket_${a.id}`).value
-                };
+            const btn = document.getElementById('btnSimpanAbsen');
+            btn.disabled = true; btn.innerText = '⏳ Mengirim...';
+
+            let dataKehadiran = [];
+            dataAnggota.forEach((a, index) => {
+                dataKehadiran.push({
+                    nama: a.nama, // Mengirimkan Nama langsung ke Sheet Absen
+                    status: document.querySelector(`input[name="status_${index}"]:checked`).value,
+                    ket: document.getElementById(`ket_${index}`).value
+                });
             });
-            
-            absensi[tgl] = dataHariIni;
-            localStorage.setItem('db_absensi', JSON.stringify(absensi));
-            alert('Absensi tanggal ' + tgl + ' berhasil disimpan!');
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "simpan_absen", tgl: tgl, data: dataKehadiran })
+                });
+                alert("Absensi berhasil disimpan ke Google Sheets!");
+            } catch (e) { alert("Gagal menyimpan absensi!"); } 
+            finally { btn.disabled = false; btn.innerText = '💾 Kirim Absen ke Sheets'; }
         }
 
         // --- REKAPITULASI ---
-        function hitungRekap() {
-            const bulanThn = document.getElementById('bulanRekap').value; // format YYYY-MM
+        async function hitungRekap() {
+            const bulanThn = document.getElementById('bulanRekap').value;
             const tbody = document.querySelector('#tabelRekap tbody');
-            if(!bulanThn) { tbody.innerHTML = '<tr><td colspan="7">Pilih bulan terlebih dahulu.</td></tr>'; return; }
-
-            // Cari tanggal yang masuk dalam bulan yang dipilih
-            const tglBulanIni = Object.keys(absensi).filter(tgl => tgl.startsWith(bulanThn));
-            const totalPertemuan = tglBulanIni.length;
-
-            tbody.innerHTML = '';
+            if(!bulanThn) return tbody.innerHTML = '<tr><td colspan="8">Pilih bulan terlebih dahulu.</td></tr>';
             
-            anggota.forEach(a => {
-                let H = 0, I = 0, S = 0, A = 0;
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">Mengambil rekapan dari Sheets...</td></tr>';
+            if(dataAnggota.length === 0) await ambilDataAnggota();
+
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=get_absen');
+                const absenRaw = await response.json();
                 
-                tglBulanIni.forEach(tgl => {
-                    const status = absensi[tgl][a.id]?.status;
-                    if(status === 'H') H++;
-                    if(status === 'I') I++;
-                    if(status === 'S') S++;
-                    if(status === 'A') A++;
+                let tanggalUnik = new Set();
+                let absenBulanIni = absenRaw.filter(ab => {
+                    if(ab.tgl.toString().startsWith(bulanThn)) {
+                        tanggalUnik.add(ab.tgl);
+                        return true;
+                    }
+                    return false;
                 });
-
-                let persen = totalPertemuan === 0 ? 0 : Math.round((H / totalPertemuan) * 100);
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${a.nama}</td>
-                        <td>${totalPertemuan} kali</td>
-                        <td>${H}</td>
-                        <td>${I}</td>
-                        <td>${S}</td>
-                        <td>${A}</td>
-                        <td><strong>${persen}%</strong></td>
-                    </tr>
-                `;
-            });
+                
+                let totalPertemuan = tanggalUnik.size;
+                tbody.innerHTML = '';
+                
+                dataAnggota.forEach(a => {
+                    let H=0, I=0, S=0, A=0;
+                    absenBulanIni.forEach(ab => {
+                        if(ab.nama === a.nama) { // Pengecekan berdasarkan Nama
+                            if(ab.status === 'H') H++;
+                            if(ab.status === 'I') I++;
+                            if(ab.status === 'S') S++;
+                            if(ab.status === 'A') A++;
+                        }
+                    });
+                    let persen = totalPertemuan === 0 ? 0 : Math.round((H / totalPertemuan) * 100);
+                    tbody.innerHTML += `<tr><td>${a.no}</td><td>${a.nama}</td><td>${totalPertemuan} kali</td><td>${H}</td><td>${I}</td><td>${S}</td><td>${A}</td><td><strong>${persen}%</strong></td></tr>`;
+                });
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="8" style="color:red">Gagal menghitung rekap.</td></tr>'; }
         }
 
-        // Load data awal saat web dibuka
-        tampilAnggota();
-        document.getElementById('tglAbsen').valueAsDate = new Date(); // Set tgl hari ini
-        loadFormAbsensi();
+        // Mulai aplikasi
+        ambilDataAnggota();
+        document.getElementById('tglAbsen').valueAsDate = new Date();
     </script>
 </body>
 </html>
