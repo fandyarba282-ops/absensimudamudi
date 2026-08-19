@@ -3,410 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Absensi Pengajian</title>
+    <title>Sistem Data Anggota</title>
     <style>
-        :root { --primary: #059669; --bg: #f3f4f6; --text: #1f2937; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; }
-        .header { background-color: var(--primary); color: white; padding: 1rem; text-align: center; }
-        .nav { display: flex; background: #047857; color: white; cursor: pointer; }
-        .nav div { flex: 1; text-align: center; padding: 15px; font-weight: bold; }
-        .nav div:hover, .nav div.active { background: #064e3b; }
-        .container { max-width: 1000px; margin: 20px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { background-color: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #047857; }
-        button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-        .btn-danger { background-color: #dc2626; padding: 5px 10px; font-size: 12px; }
-        .btn-danger:hover { background-color: #b91c1c; }
-        
-        /* Desain untuk fitur pencarian dan filter */
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .filter-bar input { flex: 2; min-width: 200px; border: 2px solid var(--primary); }
-        .filter-bar select { flex: 1; min-width: 150px; border: 2px solid var(--primary); }
-        .filter-bar button { flex: 0.5; min-width: 100px; background: #4b5563; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: var(--primary); color: white; }
-        .flex-row { display: flex; gap: 10px; }
-        .radio-group { display: flex; align-items: center; gap: 10px; font-weight: normal; }
-        .loading { color: #666; font-style: italic; text-align: center; }
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #218838; }
+        button.btn-delete { background: #dc3545; padding: 5px 10px; width: auto; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px; text-align: left; }
+        th { background: #007bff; color: white; }
     </style>
-
-    <!-- Library QR Code -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
-    <div class="header">
-        <h2>📚 Database & Absensi Muda-Mudi Pengajian</h2>
-        <small>🟢 Backend: Google Sheets</small>
+    <h2>Aplikasi Pendataan Anggota</h2>
+
+    <!-- Form Tambah Data -->
+    <div class="card">
+        <h3>Tambah Anggota Baru</h3>
+        <input type="text" id="inputNama" placeholder="Nama Lengkap" required>
+        <input type="number" id="inputHp" placeholder="Nomor HP / WA" required>
+        <input type="text" id="inputAlamat" placeholder="Alamat" required>
+        <button id="btnSimpan" onclick="simpanAnggota()">Simpan Data</button>
     </div>
-    
-    <div class="nav">
-        <div class="tab-btn active" onclick="openTab('anggota')">👥 Data Anggota</div>
-        <div class="tab-btn" onclick="openTab('absensi')">📝 Input Absensi</div>
-        <div class="tab-btn" onclick="openTab('rekap')">📊 Rekap Bulanan</div>
-        <div class="tab-btn" onclick="openTab('qrcode')">📱 QR Code Absensi</div>
-    </div>
 
-    <div class="container">
-        <!-- TAB ANGGOTA -->
-        <div id="anggota" class="tab-content active">
-            <h3>Tambah Anggota Baru</h3>
-            <form id="formAnggota" onsubmit="simpanAnggota(event)">
-                <div class="flex-row">
-                    <div class="form-group" style="flex:1;"><label>Nama Lengkap</label><input type="text" id="nama" required></div>
-                    <div class="form-group" style="flex:1;"><label>Nama Panggilan</label><input type="text" id="panggilan" required></div>
-                </div>
-                <div class="flex-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>Jenis Kelamin</label>
-                        <select id="jk"><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
-                    </div>
-                    <div class="form-group" style="flex:1;"><label>Alamat / Dusun</label><input type="text" id="alamat" required></div>
-                </div>
-                <div class="flex-row">
-                    <div class="form-group" style="flex:1;"><label>No. WA Anggota</label><input type="text" id="hp"></div>
-                    <div class="form-group" style="flex:1;"><label>No. HP Ortu</label><input type="text" id="hportu" required></div>
-                </div>
-                <button type="submit" id="btnSimpanAnggota">💾 Simpan ke Sheets</button>
-            </form>
-
-            <h3 style="margin-top: 40px; border-bottom: 2px solid #ccc; padding-bottom: 10px;">Daftar Anggota</h3>
-            
-            <div class="filter-bar">
-                <input type="text" id="cariNama" placeholder="🔍 Cari nama anggota..." onkeyup="renderTabelAnggota()">
-                <select id="filterJK" onchange="renderTabelAnggota()">
-                    <option value="Semua">Semua Jenis Kelamin</option>
-                    <option value="L">Laki-laki Saja (L)</option>
-                    <option value="P">Perempuan Saja (P)</option>
-                </select>
-                <button onclick="ambilDataAnggota()">🔄 Refresh Data</button>
-            </div>
-
-            <div style="overflow-x:auto;">
-                <table id="tabelAnggota">
-                    <thead><tr><th>No</th><th>Nama Lengkap</th><th>Panggilan</th><th>L/P</th><th>Alamat</th><th>No HP</th><th>HP Ortu</th><th>Aksi</th></tr></thead>
-                    <tbody><tr><td colspan="8" class="loading">Memuat data dari Google Sheets...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB ABSENSI -->
-        <div id="absensi" class="tab-content">
-            <h3>Input Kehadiran</h3>
-            <div class="form-group">
-                <label>Pilih Tanggal Pengajian</label>
-                <input type="date" id="tglAbsen" onchange="loadFormAbsensi()">
-            </div>
-            <div id="formAbsensiContainer"></div>
-        </div>
-
-        <!-- TAB REKAP -->
-        <div id="rekap" class="tab-content">
-            <h3>Rekapitulasi Kehadiran Bulanan</h3>
-            <div class="filter-bar">
-                <input type="month" id="bulanRekap" onchange="hitungRekap()" style="flex:2;">
-                <select id="filterRekapJK" onchange="hitungRekap()" style="flex:1;">
-                    <option value="Semua">Semua Jenis Kelamin</option>
-                    <option value="L">Laki-laki Saja (L)</option>
-                    <option value="P">Perempuan Saja (P)</option>
-                </select>
-            </div>
-            <div style="overflow-x:auto;">
-                <table id="tabelRekap">
-                    <thead><tr><th>No</th><th>Nama Lengkap</th><th>L/P</th><th>Total Pertemuan</th><th>Hadir (H)</th><th>Izin (I)</th><th>Sakit (S)</th><th>Alfa (A)</th><th>Persentase (%)</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB QR CODE -->
-        <div id="qrcode" class="tab-content">
-            <h3>📱 Display QR Code Absensi Mandiri</h3>
-            <p>Tampilkan QR Code ini di proyektor, laptop, atau cetak agar anggota bisa langsung scan lewat HP masing-masing.</p>
-
-            <div style="background: #f8fafc; border: 2px dashed var(--primary); padding: 20px; border-radius: 12px; text-align: center; max-width: 450px; margin: 20px auto;">
-                <div class="form-group" style="text-align: left;">
-                    <label>Tanggal Pengajian</label>
-                    <input type="date" id="qrTanggal" onchange="buatQRCode()">
-                </div>
-                <div class="form-group" style="text-align: left;">
-                    <label>Topik / Keterangan Sesi</label>
-                    <input type="text" id="qrTopik" value="Pengajian Rutin" placeholder="Contoh: Pengajian Minggu Ke-1" oninput="buatQRCode()">
-                </div>
-
-                <!-- Tempat QR Code Ter-render -->
-                <div id="qrcodeContainer" style="display: flex; justify-content: center; margin: 25px 0; min-height: 220px;"></div>
-                
-                <div id="qrInfoText" style="font-weight: bold; color: var(--primary); font-size: 16px;"></div>
-            </div>
-        </div>
+    <!-- Tabel Menampilkan Data -->
+    <div class="card">
+        <h3>Daftar Anggota</h3>
+        <button onclick="ambilData()" style="background-color: #007bff; width: auto; padding: 8px 15px;">🔄 Refresh Data</button>
+        <table id="tabelAnggota">
+            <thead>
+                <tr>
+                    <th>Nama</th>
+                    <th>No. HP</th>
+                    <th>Alamat</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="4">Silakan klik "Refresh Data"</td></tr>
+            </tbody>
+        </table>
     </div>
 
     <script>
-        // ⚠️ PENTING: GANTI DENGAN URL APLIKASI WEB GOOGLE APPS SCRIPT ANDA
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMrPVtBHz5Vo50ucH5Mcmt5ubE7Bau-e3VKk0NpyxeJpi5Qf3AGdnmuvZ1CWug1jshfg/exec';
-        
-        let dataAnggota = [];
-        let qrCodeObj = null; // Variabel global untuk menyimpan instance QR Code
+        // MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
+        const SCRIPT_URL = "URL_WEB_APP_ANDA_DISINI";
 
-        // FUNGSI NAVIGASI TAB YANG SUDAH DIBERSIHKAN
-        function openTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            
-            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(`'${tabId}'`));
-            if(activeBtn) activeBtn.classList.add('active');
+        // ==========================================
+        // FUNGSI 1: MENGAMBIL (READ) DATA
+        // ==========================================
+        async function ambilData() {
+            const tbody = document.querySelector("#tabelAnggota tbody");
+            tbody.innerHTML = `<tr><td colspan="4">⏳ Mengambil data...</td></tr>`;
 
-            if(tabId === 'absensi') loadFormAbsensi();
-            if(tabId === 'rekap') hitungRekap();
-            if(tabId === 'qrcode') initQRPage();
-        }
-
-        // --- MANAJEMEN ANGGOTA ---
-        async function ambilDataAnggota() {
-            const tbody = document.querySelector('#tabelAnggota tbody');
-            tbody.innerHTML = '<tr><td colspan="8" class="loading">⏳ Memuat data dari Google Sheets... (Tunggu sebentar)</td></tr>';
             try {
-                const response = await fetch(SCRIPT_URL + '?action=get_anggota');
-                dataAnggota = await response.json();
-                renderTabelAnggota();
-            } catch (e) { 
-                tbody.innerHTML = '<tr><td colspan="8" style="color:red; text-align:center;">Gagal mengambil data. Pastikan URL Script benar.</td></tr>'; 
+                // Gunakan URL dengan parameter action=get_anggota
+                let response = await fetch(`${SCRIPT_URL}?action=get_anggota`);
+                let result = await response.json();
+
+                if (result.status === "success") {
+                    tbody.innerHTML = ""; // Bersihkan tabel
+                    
+                    if (result.data.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4">Belum ada data anggota.</td></tr>`;
+                        return;
+                    }
+
+                    result.data.forEach(item => {
+                        let row = `<tr>
+                            <td>${item.nama}</td>
+                            <td>${item.hp}</td>
+                            <td>${item.alamat}</td>
+                            <td>
+                                <button class="btn-delete" onclick="hapusAnggota(${item.noUrut}, '${item.nama}')">Hapus</button>
+                            </td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="4" style="color:red;">❌ Gagal mengambil data. Pastikan URL Script benar.</td></tr>`;
             }
         }
 
-        function renderTabelAnggota() {
-            const tbody = document.querySelector('#tabelAnggota tbody');
-            const kataKunci = document.getElementById('cariNama').value.toLowerCase();
-            const filterJK = document.getElementById('filterJK').value;
+        // ==========================================
+        // FUNGSI 2: MENYIMPAN (CREATE) DATA
+        // ==========================================
+        async function simpanAnggota() {
+            let nama = document.getElementById('inputNama').value;
+            let hp = document.getElementById('inputHp').value;
+            let alamat = document.getElementById('inputAlamat').value;
+            let btn = document.getElementById('btnSimpan');
 
-            tbody.innerHTML = '';
+            if(!nama || !hp || !alamat) return alert("Semua kolom wajib diisi!");
 
-            const dataTersaring = dataAnggota.filter(a => {
-                const cocokNama = a.nama.toLowerCase().includes(kataKunci) || a.panggilan.toLowerCase().includes(kataKunci);
-                const cocokJK = (filterJK === 'Semua') ? true : (a.jk === filterJK);
-                return cocokNama && cocokJK;
-            });
+            btn.innerHTML = "⏳ Menyimpan...";
+            btn.disabled = true;
 
-            if(dataTersaring.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">🤷‍♂️ Data tidak ditemukan.</td></tr>';
-                return;
-            }
-
-            dataTersaring.forEach((a) => {
-                tbody.innerHTML += `<tr>
-                    <td>${a.no}</td>
-                    <td><strong>${a.nama}</strong></td>
-                    <td>${a.panggilan}</td>
-                    <td>${a.jk === 'L' ? 'Laki-laki' : 'Perempuan'}</td>
-                    <td>${a.alamat}</td>
-                    <td>${a.hp}</td>
-                    <td>${a.hportu}</td>
-                    <td><button class="btn-danger" onclick="hapusAnggota(${a.no}, '${a.nama}')">🗑️ Hapus</button></td>
-                </tr>`;
-            });
-        }
-
-        async function simpanAnggota(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnSimpanAnggota');
-            btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
-            
-            const payload = {
+            let payload = {
                 action: "simpan_anggota",
-                nama: document.getElementById('nama').value,
-                panggilan: document.getElementById('panggilan').value,
-                jk: document.getElementById('jk').value,
-                alamat: document.getElementById('alamat').value,
-                hp: document.getElementById('hp').value,
-                hportu: document.getElementById('hportu').value
+                nama: nama,
+                hp: hp,
+                alamat: alamat
             };
 
             try {
-                await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
-                alert("Data berhasil disimpan ke Google Sheets!");
-                document.getElementById('formAnggota').reset();
-                ambilDataAnggota();
-            } catch (e) { alert("Gagal menyimpan data!"); } 
-            finally { btn.disabled = false; btn.innerText = '💾 Simpan ke Sheets'; }
-        }
-
-        async function hapusAnggota(noUrut, namaLengkap) {
-            if(!confirm(`Yakin ingin menghapus data anggota bernama "${namaLengkap}"?`)) return;
-            try {
-                document.querySelector('#tabelAnggota tbody').innerHTML = `<tr><td colspan="8" class="loading">⏳ Menghapus data ${namaLengkap} dari Google Sheets...</td></tr>`;
-                await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: "hapus_anggota", no: noUrut }) });
-                alert("Data berhasil dihapus!");
-                ambilDataAnggota(); 
-            } catch (e) { 
-                alert("Gagal menghapus data!"); ambilDataAnggota(); 
-            }
-        }
-
-        // --- MANAJEMEN ABSENSI ---
-        async function loadFormAbsensi() {
-            const tgl = document.getElementById('tglAbsen').value;
-            const container = document.getElementById('formAbsensiContainer');
-            if(!tgl) return container.innerHTML = '<p>Pilih tanggal dulu.</p>';
-            if(dataAnggota.length === 0) await ambilDataAnggota();
-            if(dataAnggota.length === 0) return container.innerHTML = '<p>Belum ada anggota.</p>';
-
-            let html = `<div style="overflow-x:auto;"><table><thead><tr><th>No</th><th>Nama Lengkap</th><th>L/P</th><th>Kehadiran</th><th>Keterangan</th></tr></thead><tbody>`;
-            dataAnggota.forEach((a, index) => {
-                html += `<tr>
-                    <td>${a.no}</td>
-                    <td><strong>${a.nama}</strong></td>
-                    <td>${a.jk}</td>
-                    <td><div class="radio-group">
-                        <label><input type="radio" name="status_${index}" value="H" checked> H</label>
-                        <label><input type="radio" name="status_${index}" value="I"> I</label>
-                        <label><input type="radio" name="status_${index}" value="S"> S</label>
-                        <label><input type="radio" name="status_${index}" value="A"> A</label>
-                    </div></td>
-                    <td><input type="text" id="ket_${index}" placeholder="Catatan..."></td>
-                </tr>`;
-            });
-            html += `</tbody></table></div><br><button onclick="simpanAbsensi()" id="btnSimpanAbsen">💾 Kirim Absen ke Sheets</button>`;
-            container.innerHTML = html;
-        }
-
-        async function simpanAbsensi() {
-            const tgl = document.getElementById('tglAbsen').value;
-            if(!tgl) return;
-            const btn = document.getElementById('btnSimpanAbsen');
-            btn.disabled = true; btn.innerText = '⏳ Mengirim...';
-
-            let dataKehadiran = [];
-            dataAnggota.forEach((a, index) => {
-                dataKehadiran.push({
-                    nama: a.nama,
-                    status: document.querySelector(`input[name="status_${index}"]:checked`).value,
-                    ket: document.getElementById(`ket_${index}`).value
-                });
-            });
-
-            try {
-                await fetch(SCRIPT_URL, {
+                let response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: "simpan_absen", tgl: tgl, data: dataKehadiran })
+                    redirect: 'follow', // PENTING: Untuk Google Script
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // PENTING: Mencegah error CORS
+                    body: JSON.stringify(payload)
                 });
-                alert("Absensi berhasil disimpan ke Google Sheets!");
-            } catch (e) { alert("Gagal menyimpan absensi!"); } 
-            finally { btn.disabled = false; btn.innerText = '💾 Kirim Absen ke Sheets'; }
+                
+                let result = await response.json();
+                
+                if (result.status === "success") {
+                    alert(result.message);
+                    document.getElementById('inputNama').value = "";
+                    document.getElementById('inputHp').value = "";
+                    document.getElementById('inputAlamat').value = "";
+                    ambilData(); // Otomatis refresh tabel
+                } else {
+                    alert("Error: " + result.message);
+                }
+            } catch (e) {
+                alert("Gagal menghubungi server!");
+            }
+
+            btn.innerHTML = "Simpan Data";
+            btn.disabled = false;
         }
 
-        // --- REKAPITULASI ---
-        async function hitungRekap() {
-            const bulanThn = document.getElementById('bulanRekap').value;
-            const filterRekapJK = document.getElementById('filterRekapJK').value;
-            const tbody = document.querySelector('#tabelRekap tbody');
-            
-            if(!bulanThn) return tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Silakan pilih bulan terlebih dahulu.</td></tr>';
-            
-            tbody.innerHTML = '<tr><td colspan="9" class="loading">⏳ Mengambil rekapan dari Sheets...</td></tr>';
-            if(dataAnggota.length === 0) await ambilDataAnggota();
+        // ==========================================
+        // FUNGSI 3: MENGHAPUS (DELETE) DATA
+        // ==========================================
+        async function hapusAnggota(barisDiSheet, namaLengkap) {
+            if(!confirm(`Yakin ingin menghapus data anggota: ${namaLengkap}?`)) return;
 
             try {
-                const response = await fetch(SCRIPT_URL + '?action=get_absen');
-                const absenRaw = await response.json();
-                
-                let tanggalUnik = new Set();
-                let absenBulanIni = absenRaw.filter(ab => {
-                    if(ab.tgl.toString().startsWith(bulanThn)) {
-                        tanggalUnik.add(ab.tgl);
-                        return true;
-                    }
-                    return false;
-                });
-                
-                let totalPertemuan = tanggalUnik.size;
-                tbody.innerHTML = '';
-                
-                const dataRekapTersaring = dataAnggota.filter(a => {
-                    return filterRekapJK === 'Semua' ? true : a.jk === filterRekapJK;
-                });
+                let payload = {
+                    action: "hapus_anggota",
+                    no: barisDiSheet
+                };
 
-                if(dataRekapTersaring.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Data tidak ditemukan untuk filter ini.</td></tr>';
-                    return;
+                let response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow', // PENTING
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // PENTING
+                    body: JSON.stringify(payload)
+                });
+                
+                let result = await response.json();
+                
+                if (result.status === "success") {
+                    alert(result.message);
+                    ambilData(); // Otomatis refresh tabel setelah hapus
                 }
-
-                dataRekapTersaring.forEach(a => {
-                    let H=0, I=0, S=0, A=0;
-                    absenBulanIni.forEach(ab => {
-                        if(ab.nama === a.nama) { 
-                            if(ab.status === 'H') H++;
-                            if(ab.status === 'I') I++;
-                            if(ab.status === 'S') S++;
-                            if(ab.status === 'A') A++;
-                        }
-                    });
-                    let persen = totalPertemuan === 0 ? 0 : Math.round((H / totalPertemuan) * 100);
-                    let warnaPersen = persen >= 75 ? 'color:green;' : 'color:red;';
-
-                    tbody.innerHTML += `<tr>
-                        <td>${a.no}</td>
-                        <td><strong>${a.nama}</strong></td>
-                        <td>${a.jk}</td>
-                        <td>${totalPertemuan} kali</td>
-                        <td>${H}</td><td>${I}</td><td>${S}</td><td>${A}</td>
-                        <td style="${warnaPersen}"><strong>${persen}%</strong></td>
-                    </tr>`;
-                });
-            } catch(e) { tbody.innerHTML = '<tr><td colspan="9" style="color:red; text-align:center;">Gagal menghitung rekap.</td></tr>'; }
-        }
-
-        // --- GENERATOR QR CODE (SUDAH DIPERBAIKI) ---
-        function initQRPage() {
-            const tglInput = document.getElementById('qrTanggal');
-            // Jika tanggal kosong, set ke hari ini
-            if(!tglInput.value) {
-                tglInput.valueAsDate = new Date();
+            } catch (e) {
+                alert("Gagal menghapus data!");
             }
-            buatQRCode();
         }
 
-        function buatQRCode() {
-            const tgl = document.getElementById('qrTanggal').value;
-            const topik = document.getElementById('qrTopik').value.trim() || 'Pengajian Rutin';
-            const container = document.getElementById('qrcodeContainer');
-
-            if(!tgl) return;
-
-            // Format isi QR Code: PENGAJIAN|YYYY-MM-DD|Topik
-            const isiQR = `PENGAJIAN|${tgl}|${topik}`;
-
-            // PENTING: Jangan gunakan innerHTML = '' untuk QRCode ini.
-            // Gunakan qrCodeObj.clear() dan makeCode() jika objeknya sudah ada.
-            if (qrCodeObj === null) {
-                qrCodeObj = new QRCode(container, {
-                    text: isiQR,
-                    width: 220,
-                    height: 220,
-                    colorDark : "#059669",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
-            } else {
-                qrCodeObj.clear(); 
-                qrCodeObj.makeCode(isiQR); 
-            }
-
-            document.getElementById('qrInfoText').innerText = `📅 ${tgl} — ${topik}`;
-        }
-
-        // Mulai aplikasi
-        ambilDataAnggota();
-        document.getElementById('tglAbsen').valueAsDate = new Date();
-
+        // Otomatis load data saat web pertama kali dibuka
+        window.onload = ambilData;
     </script>
 </body>
 </html>
